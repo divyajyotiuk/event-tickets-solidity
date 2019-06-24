@@ -53,9 +53,9 @@ contract EventTickets {
         require(
             msg.sender == getOwner(),
             "Only owner can call this."
-        );
+        ); 
         _;
-    }
+      }
      
     /*
         Define a constructor.
@@ -76,7 +76,7 @@ contract EventTickets {
         This function does not modify state, add the appropriate keyword.
         The returned details should be called description, website, uint totalTickets, uint sales, bool isOpen in that order.
     */
-    function readEvent() public view 
+    function readEvent() public pure 
     returns(string memory description, string memory website, uint totalTickets, uint sales, bool isOpen) 
     {
         return (description, website, totalTickets, sales,isOpen);
@@ -87,9 +87,9 @@ contract EventTickets {
         This function takes 1 argument, an address and
         returns the number of tickets that address has purchased.
     */
-    function getBuyerTicketCount(address buyer) public returns(uint tickets)
+    function getBuyerTicketCount(address buyer) public view returns(uint tickets)
     {
-      tickets = myEvent.buyers.getByKey(buyer);
+      tickets = myEvent.buyers[buyer];
       return tickets;
     }
      
@@ -113,9 +113,9 @@ contract EventTickets {
         require(myEvent.isOpen==true && msg.value >= tickets*TICKET_PRICE && myEvent.totalTickets >= tickets
         ,"Tickets cannot be purchased"
         );
-        _;
+        
 
-        myEvent.buyers[msg.sender].add(tickets);
+        myEvent.buyers[msg.sender] = tickets;
         myEvent.sales = myEvent.totalTickets*TICKET_PRICE;
         balance = balance + (msg.value - tickets*TICKET_PRICE);
         emit LogBuyTickets(msg.sender,tickets);
@@ -132,15 +132,15 @@ contract EventTickets {
     */
 
     function getRefund() public {
-        require(myEvent.buyers.contains(msg.sender),
+        require(myEvent.buyers[msg.sender]!=0,
         "No buyer of this address found"
         );
-        _;
+        
 
-        uint ticketsPurchased = myEvent.buyers.getByKey(msg.sender);
+        uint ticketsPurchased = myEvent.buyers[msg.sender];
         myEvent.totalTickets = myEvent.totalTickets +  ticketsPurchased;
         balance = balance + ticketsPurchased*TICKET_PRICE;
-        LogGetRefund(msg.sender,ticketsPurchased);
+        emit LogGetRefund(msg.sender,ticketsPurchased);
     }
     
     /*
@@ -156,7 +156,7 @@ contract EventTickets {
         require(msg.sender==owner,
         "Only owner can call."
         );
-        _;
+        
 
         myEvent.isOpen = false;
         balance = balance + msg.value;
