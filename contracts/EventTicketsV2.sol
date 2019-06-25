@@ -9,16 +9,12 @@ contract EventTicketsV2 {
         Define an public owner variable. Set it to the creator of the contract when it is initialized.
     */
     address public owner;
-    uint public balance;
 
-
-     function getBalance() public view returns(uint) { return balance; }
-
-    function setOwner(address _owner) public {
-        owner = _owner;
-    }
-    function getOwner() public view returns(address) { return owner; } 
     uint   PRICE_TICKET = 100 wei;
+
+    constructor() public{
+        owner = msg.sender;
+    }
 
     /*
         Create a variable to keep track of the event ID numbers.
@@ -60,7 +56,7 @@ contract EventTicketsV2 {
     */
      modifier onlyOwner(){ 
         require(
-            msg.sender == getOwner(),
+            msg.sender == owner,
             "Only owner can call this."
         ); 
         _;
@@ -129,11 +125,13 @@ contract EventTicketsV2 {
     */
 
     function buyTickets(uint eventId,uint tickets) public payable{
-        require(events[eventId].isOpen == true && msg.value >= tickets*PRICE_TICKET && events[eventId].totalTickets >= tickets);
+        require(events[eventId].isOpen == true);
+        require(msg.value >= tickets*PRICE_TICKET);
+        require(tickets <= (events[eventId].totalTickets - events[eventId].sales));
 
         events[eventId].buyers[msg.sender] = tickets;
         events[eventId].sales = events[eventId].sales + tickets;
-        balance = balance + (msg.value - tickets*PRICE_TICKET);
+        msg.sender.transfer(msg.value - tickets*PRICE_TICKET);
         emit LogBuyTickets(msg.sender, eventId, tickets);
     }
 
@@ -148,14 +146,12 @@ contract EventTicketsV2 {
             - emit the appropriate event
     */
       function getRefund(uint eventId) public {
-        require( events[eventId].buyers[msg.sender]!=0,
-        "No buyer of this address found"
-        );
+        require( events[eventId].buyers[msg.sender]!=0);
         
 
         uint ticketsPurchased =  events[eventId].buyers[msg.sender];
-         events[eventId].totalTickets =  events[eventId].totalTickets +  ticketsPurchased;
-        balance = balance + ticketsPurchased*PRICE_TICKET;
+         events[eventId].sales =  events[eventId].sales -  ticketsPurchased;
+       msg.sender.transfer(ticketsPurchased*PRICE_TICKET);
         emit LogGetRefund(msg.sender,eventId,ticketsPurchased);
     }
 
@@ -178,14 +174,11 @@ contract EventTicketsV2 {
             - emit the appropriate event
     */
     function endSale(uint eventId) public payable{
-        require(msg.sender==owner,
-        "Only owner can call."
-        );
-        
+        require(msg.sender==owner);
 
         events[eventId].isOpen = false;
-        balance = balance + msg.value;
-        emit LogEndSale(msg.sender,balance,eventId);
+        msg.sender.transfer(events[eventId].sales*PRICE_TICKET);
+        emit LogEndSale(msg.sender,events[eventId].sales*PRICE_TICKET,eventId);
 
     }
 }

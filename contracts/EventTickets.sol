@@ -12,10 +12,6 @@ contract EventTickets {
         Use the appropriate keyword to allow ether transfers.
      */
      address public owner;
-     uint public balance;
-
-     function getOwner() public view returns(address) { return owner; }
-     function getBalance() public view returns(uint) { return balance; }
 
     uint   TICKET_PRICE = 100 wei;
 
@@ -51,7 +47,7 @@ contract EventTickets {
     */
     modifier onlyOwner(){ 
         require(
-            msg.sender == getOwner(),
+            msg.sender == owner,
             "Only owner can call this."
         ); 
         _;
@@ -68,7 +64,8 @@ contract EventTickets {
         myEvent.description = _description;
         myEvent.websiteUrl = _websiteUrl;
         myEvent.totalTickets = _totalTickets;
-
+        myEvent.isOpen = true;
+        myEvent.sales = 0;
     }
     
     /*
@@ -76,10 +73,10 @@ contract EventTickets {
         This function does not modify state, add the appropriate keyword.
         The returned details should be called description, website, uint totalTickets, uint sales, bool isOpen in that order.
     */
-    function readEvent() public pure 
+    function readEvent() public view
     returns(string memory description, string memory website, uint totalTickets, uint sales, bool isOpen) 
     {
-        return (description, website, totalTickets, sales,isOpen);
+        return (myEvent.description, myEvent.websiteUrl, myEvent.totalTickets, myEvent.sales, myEvent.isOpen);
     }
 
     /*
@@ -110,14 +107,14 @@ contract EventTickets {
     */
 
     function buyTickets(uint tickets) payable external {
-        require(myEvent.isOpen==true && msg.value >= tickets*TICKET_PRICE && myEvent.totalTickets >= tickets
-        ,"Tickets cannot be purchased"
-        );
+        require(myEvent.isOpen==true);
+        require(msg.value >= tickets*TICKET_PRICE);
+        require( tickets <= (myEvent.totalTickets - myEvent.sales) );
         
 
         myEvent.buyers[msg.sender] = tickets;
-        myEvent.sales = myEvent.totalTickets*TICKET_PRICE;
-        balance = balance + (msg.value - tickets*TICKET_PRICE);
+        myEvent.sales = myEvent.sales + tickets;
+        msg.sender.transfer(msg.value - tickets*TICKET_PRICE);
         emit LogBuyTickets(msg.sender,tickets);
     }
     
@@ -132,14 +129,12 @@ contract EventTickets {
     */
 
     function getRefund() public {
-        require(myEvent.buyers[msg.sender]!=0,
-        "No buyer of this address found"
-        );
+        require(myEvent.buyers[msg.sender]!=0 );
         
 
         uint ticketsPurchased = myEvent.buyers[msg.sender];
-        myEvent.totalTickets = myEvent.totalTickets +  ticketsPurchased;
-        balance = balance + ticketsPurchased*TICKET_PRICE;
+        myEvent.sales = myEvent.sales -  ticketsPurchased;
+        msg.sender.transfer(ticketsPurchased*TICKET_PRICE);
         emit LogGetRefund(msg.sender,ticketsPurchased);
     }
     
@@ -153,14 +148,11 @@ contract EventTickets {
             - emit the appropriate event
     */
     function endSale() public payable{
-        require(msg.sender==owner,
-        "Only owner can call."
-        );
-        
+        require(msg.sender==owner); 
 
         myEvent.isOpen = false;
-        balance = balance + msg.value;
-        emit LogEndSale(msg.sender,balance);
+        msg.sender.transfer(myEvent.sales*TICKET_PRICE);
+        emit LogEndSale(msg.sender,myEvent.sales*TICKET_PRICE);
 
     }
 }
